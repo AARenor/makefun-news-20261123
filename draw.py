@@ -48,6 +48,20 @@ def wrap(draw: ImageDraw.ImageDraw, text: str, fnt: ImageFont.FreeTypeFont, max_
     return lines
 
 
+def fit_font(
+    draw: ImageDraw.ImageDraw,
+    text: str,
+    base: ImageFont.FreeTypeFont,
+    max_w: int,
+    floor: int = 22,
+) -> ImageFont.FreeTypeFont:
+    """Largest size at or below the base size whose width fits max_w."""
+    size = base.size
+    while size > floor and draw.textlength(text, font=font(BOLD, size)) > max_w:
+        size -= 1
+    return font(BOLD, size)
+
+
 # ---------------------------------------------------------------- icons ----
 # Each icon draws into a 96*ICON_SCALE square and is pasted at the icon box.
 
@@ -223,13 +237,49 @@ def icon_globe() -> Image.Image:
     return img.resize((ICON, ICON), Image.LANCZOS)
 
 
+def icon_house() -> Image.Image:
+    img = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    grey = (74, 84, 102)
+    flame = (233, 120, 90)
+    core = (250, 186, 128)
+    # square body plus triangular roof, dark grey
+    d.rectangle([_sc(16), _sc(52), _sc(76), _sc(86)], fill=grey)
+    d.polygon(
+        [(_sc(10), _sc(54)), (_sc(46), _sc(20)), (_sc(82), _sc(54))], fill=grey
+    )
+    # right side of the house replaced by an orange flame
+    d.polygon(
+        [
+            (_sc(54), _sc(86)),
+            (_sc(50), _sc(72)),
+            (_sc(56), _sc(62)),
+            (_sc(60), _sc(66)),
+            (_sc(58), _sc(50)),
+            (_sc(66), _sc(56)),
+            (_sc(70), _sc(34)),
+            (_sc(76), _sc(52)),
+            (_sc(84), _sc(48)),
+            (_sc(86), _sc(64)),
+            (_sc(80), _sc(78)),
+            (_sc(72), _sc(88)),
+        ],
+        fill=flame,
+    )
+    d.polygon(
+        [(_sc(66), _sc(86)), (_sc(63), _sc(74)), (_sc(69), _sc(68)), (_sc(72), _sc(80))],
+        fill=core,
+    )
+    return img.resize((ICON, ICON), Image.LANCZOS)
+
+
 CARDS = [
-    ("GULF OF FINLAND", "Cargo ship still burning", "Russia-linked", (233, 120, 90), icon_ship),
-    ("GLOBAL MARKETS", "Brent crude at a two-year high", "$124.77", (120, 200, 140), icon_barrel),
+    ("OFF FINLAND", "Cargo ship still burning", "Russia-linked", (233, 120, 90), icon_ship),
+    ("GLOBAL MARKETS", "Brent crude at $124.77", "India imports +60%", (120, 200, 140), icon_barrel),
     ("NAYPYIDAW", "Myanmar rejects ASEAN ruling", "army-backed", (233, 120, 90), icon_asean),
     ("NEW DELHI", "Nepal asks for $2bn in flood aid", "$2bn", (120, 170, 235), icon_flood),
     ("SINGAPORE", "Chip-smuggling network uncovered", "Nvidia servers", (120, 170, 235), icon_chip),
-    ("COP31", "Climate summit closes", "COP31", (120, 200, 140), icon_globe),
+    ("NARAIL, BANGLADESH", "Houses burned as unrest spreads", "30 homes", (233, 120, 90), icon_house),
 ]
 
 
@@ -267,6 +317,7 @@ def render() -> Image.Image:
     card_no = font(BOLD, 18)
     head = font(BOLD, 26)
     fig = font(BOLD, 34)
+    fig_room = CARD_W - TEXT_X - 24
 
     for i, (place, headline, figure, accent, icon_fn) in enumerate(CARDS):
         cx = COLS[i % 2]
@@ -279,7 +330,13 @@ def render() -> Image.Image:
         lines = wrap(d, headline, head, TEXT_W)
         for n, line in enumerate(lines[:2]):
             d.text((tx, cy + 58 + n * 33), line, font=head, fill=TEXT, anchor="lt")
-        d.text((tx, cy + 150), figure, font=fig, fill=accent, anchor="lt")
+        d.text(
+            (tx, cy + 150),
+            figure,
+            font=fit_font(d, figure, fig, fig_room),
+            fill=accent,
+            anchor="lt",
+        )
 
     # footer
     d.text(
